@@ -1,3 +1,46 @@
+# CrossPoint Reader +functions
+
+A personal fork of [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader), the open-source e-reader firmware for Xteink and other ESP32 e-ink devices. It keeps the upstream firmware and adds small, focused features. Everything below the divider is the original CrossPoint README.
+
+## What this fork adds
+
+### Read status with date
+
+Books you finish are marked as read, with the date:
+
+- **Automatic:** turning past the last page (the **End of book** screen) marks the book. Finishing it again updates the date.
+- **Manual:** the reader menu has **Mark as READ** / **Mark as UNREAD**.
+- **Browse Files and Library:** finished books show **Read in DD/MM/YYYY** on their second line (in the Library it comes before the author).
+- **Home screen (Lyra theme):** the "continue reading" card shows the same line under the author.
+- **Translated:** the wording follows the device language. English: "Read in 28/10/2026". Portuguese (Brazil): "Lido em 28/10/2026". Other languages fall back to English until they are translated.
+- **Formats:** EPUB, TXT and MD.
+
+How it is stored: a 6-byte `read.bin` file inside the book's cache folder (`/.crosspoint/epub_<hash>/`). Nothing else on the SD card changes, and `progress.bin` is untouched. The date is the local date from the device clock; if the clock was not set, the book is marked **Read** without a date.
+
+Limits to know about:
+
+- Clearing the reading cache (**Settings > Reader > Clear Reading Cache**) removes the marks. **Delete Book Cache** in the reader menu keeps the current book's mark.
+- Renaming or moving a book from the web interface or WebDAV resets its mark. Renaming or moving it on the device keeps it.
+- On devices without a clock chip the time zone is UTC, so a book finished late in the evening in a western time zone can get the next day's date.
+
+The code lives in `src/util/ReadStatus.h/.cpp`, with small hooks in the reader, File Browser, Library and Lyra Home card. New strings are in `lib/I18n/translations/` (`english.yaml`, `portuguese-BR.yaml`).
+
+### Status
+
+Built from upstream `develop` (2.0.0, unreleased) and tested on the Xteink X4 Pro only. Build with `pio run -e x4pro`.
+
+### Staying in sync with upstream
+
+```bash
+git remote add upstream https://github.com/crosspoint-reader/crosspoint-reader.git
+git fetch upstream
+git merge upstream/develop
+```
+
+Then rebuild and check the read-status screens again.
+
+---
+
 # CrossPoint Reader
 
 [![Fund contributors](https://img.shields.io/badge/%F0%9F%91%91_Fund_contributors-royalty.dev-BB953A?style=for-the-badge&labelColor=1a1a1a)](https://app.royalty.dev/crosspoint-reader/crosspoint-reader)
