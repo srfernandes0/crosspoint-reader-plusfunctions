@@ -26,6 +26,7 @@
 #include "components/icons/search32.h"
 #include "fontIds.h"
 #include "util/BookCacheUtils.h"
+#include "util/ReadStatus.h"
 
 namespace fui = freeink::ui;
 
@@ -705,10 +706,12 @@ void LibraryListActivity::rebuildActionTrampoline(const fui::ActionEvent&, void*
 // Title and author for one entry, read straight from the index. Only ever
 // called for rows about to be drawn, so at most a screenful of strings exists
 // at once.
-bool LibraryListActivity::rowTextFor(const int entry, std::string& title, std::string& author, std::string* fileName) {
+bool LibraryListActivity::rowTextFor(const int entry, std::string& title, std::string& author, std::string* fileName,
+                                     std::string* fullPath) {
   title.clear();
   author.clear();
   if (fileName) fileName->clear();
+  if (fullPath) fullPath->clear();
   if (entry < pinnedCount()) {
     const auto& books = RECENT_BOOKS.getBooks();
     if (entry < 0 || entry >= static_cast<int>(books.size())) return false;
@@ -716,6 +719,7 @@ bool LibraryListActivity::rowTextFor(const int entry, std::string& title, std::s
     title = book.title;
     author = book.author;
     if (fileName) *fileName = book.path;
+    if (fullPath) *fullPath = book.path;
     return true;
   }
   const uint16_t ordinal = index.ordinalForRow(sortOrder, static_cast<uint16_t>(rowFor(entry)));
@@ -729,6 +733,7 @@ bool LibraryListActivity::rowTextFor(const int entry, std::string& title, std::s
     // The stored title when the book gave one, the filename otherwise.
     if (!index.readTitle(record, title) || title.empty()) index.readName(record, title);
     if (fileName) index.readName(record, *fileName);
+    if (fullPath && !index.readPath(record, *fullPath)) fullPath->clear();
   }
   if (title.empty()) title = tr(STR_LIBRARY_UNKNOWN_TITLE);
   return true;
@@ -851,6 +856,7 @@ void LibraryListActivity::buildRows(UiScreen& screen) {
   if (winTitles.size() < cap) winTitles.resize(cap);
   if (winAuthors.size() < cap) winAuthors.resize(cap);
   if (!groupsCollapsed && winHeaders.size() < cap) winHeaders.resize(cap);
+  if (!groupsCollapsed && winSubtitles.size() < cap) winSubtitles.resize(cap);
   winItems.clear();
   if (winItems.capacity() < cap) winItems.reserve(cap);
 
@@ -859,6 +865,8 @@ void LibraryListActivity::buildRows(UiScreen& screen) {
   uint32_t previousInitial = 0;
   std::string rowFile;
   rowFile.reserve(128);
+  std::string rowPath;
+  rowPath.reserve(128);
   // Capture this after syncTabListViewport(), which may clamp nav.top.
   const int windowStart = static_cast<int>(props.topIndex);
   for (int entry = windowStart; entry < count && rows < static_cast<int>(cap); entry++) {
@@ -874,7 +882,7 @@ void LibraryListActivity::buildRows(UiScreen& screen) {
         formatInitialHeading(titleInitialFor(bookEntry), title);
       }
     } else {
-      if (!rowTextFor(entry, title, author, &rowFile)) continue;
+      if (!rowTextFor(entry, title, author, &rowFile, &rowPath)) continue;
       uint32_t initial = 0;
       bool startsGroup = false;
       if (authorGrouped) {
@@ -893,6 +901,19 @@ void LibraryListActivity::buildRows(UiScreen& screen) {
         item.sectionHeading = heading.c_str();
       }
       if (!authorGrouped && !author.empty()) item.subtitle = author.c_str();
+      // Finished books lead the second line with "Read in DD/MM/YYYY".
+      const ReadStatus::Info readInfo = ReadStatus::load(rowPath);
+      if (readInfo.read) {
+        std::string& subtitle = winSubtitles[static_cast<size_t>(rows)];
+        char readLabel[64];
+        ReadStatus::formatLabel(readInfo, readLabel, sizeof(readLabel));
+        subtitle = readLabel;
+        if (!authorGrouped && !author.empty()) {
+          subtitle += " - ";
+          subtitle += author;
+        }
+        item.subtitle = subtitle.c_str();
+      }
     }
 
     item.label = title.c_str();

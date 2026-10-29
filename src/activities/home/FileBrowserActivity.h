@@ -40,6 +40,9 @@ class FileBrowserActivity final : public UiListActivity {
   static constexpr size_t ROW_NAME_BUF_SIZE = 512;  // NAME_BUFFER_SIZE + "[]" + terminator slack
   char rowNameBuf[ROW_NAME_BUF_SIZE]{};
   char rowExtBuf[16]{};
+  // "Read in DD/MM/YYYY" line and the book path for the row being laid out; same lifetime rule as above.
+  char rowReadBuf[64]{};
+  std::string rowPathScratch;
   static void provideRow(void* ctx, uint16_t index, freeink::ui::ListItem& item);
 
   // CJK fallback glyphs are prewarmed for a bounded window of rows around the

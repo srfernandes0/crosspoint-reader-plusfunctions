@@ -25,6 +25,7 @@
 #include "components/icons/transfer.h"
 #include "components/icons/wifi.h"
 #include "fontIds.h"
+#include "util/ReadStatus.h"
 
 // Internal constants
 namespace {
@@ -285,7 +286,15 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     const int titleLineHeight = renderer.getLineHeight(UI_12_FONT_ID);
     const int titleBlockHeight = titleLineHeight * static_cast<int>(titleLines.size());
     const int authorHeight = book.author.empty() ? 0 : (renderer.getLineHeight(UI_10_FONT_ID) * 3 / 2);
-    const int totalBlockHeight = titleBlockHeight + authorHeight;
+    // Finished books get a small "Read in DD/MM/YYYY" line under the author.
+    char readLabel[64] = {};
+    const ReadStatus::Info readInfo = ReadStatus::load(book.path);
+    if (readInfo.read) ReadStatus::formatLabel(readInfo, readLabel, sizeof(readLabel));
+    const bool hasReadLabel = readLabel[0] != '\0';
+    std::string readText;
+    if (hasReadLabel) readText = renderer.truncatedText(SMALL_FONT_ID, readLabel, textWidth);
+    const int readHeight = hasReadLabel ? (renderer.getLineHeight(SMALL_FONT_ID) * 3 / 2) : 0;
+    const int totalBlockHeight = titleBlockHeight + authorHeight + readHeight;
     int titleY = tileY + tileHeight / 2 - totalBlockHeight / 2;
     const int textX = tileX + hPaddingInSelection + coverWidth + LyraMetrics::values.verticalSpacing;
     for (const auto& line : titleLines) {
@@ -295,6 +304,11 @@ void LyraTheme::drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std:
     if (!book.author.empty()) {
       titleY += renderer.getLineHeight(UI_10_FONT_ID) / 2;
       renderer.drawText(UI_10_FONT_ID, textX, titleY, author.c_str(), true);
+      titleY += renderer.getLineHeight(UI_10_FONT_ID);
+    }
+    if (hasReadLabel) {
+      titleY += renderer.getLineHeight(SMALL_FONT_ID) / 2;
+      renderer.drawText(SMALL_FONT_ID, textX, titleY, readText.c_str(), true);
     }
   } else {
     drawEmptyRecents(renderer, rect);

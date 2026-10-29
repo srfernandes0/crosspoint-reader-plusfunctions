@@ -19,6 +19,7 @@
 #include "ReaderActivity.h"
 #include "ReaderToolbarUi.h"
 #include "components/OptionPopup.h"
+#include "util/ReadStatus.h"
 
 class EpubReaderActivity final : public ReaderActivity {
   std::shared_ptr<Epub> epub;
@@ -61,6 +62,10 @@ class EpubReaderActivity final : public ReaderActivity {
   bool recentsEntryRemoved = false;
   unsigned long bookmarkMessageTime = 0UL;
   bool pendingReadFolderMove = false;
+  // Finished-reading marker, loaded with the book. endOfBookMarked keeps the End of book screen from
+  // marking again on every loop tick.
+  ReadStatus::Info readStatus;
+  bool endOfBookMarked = false;
 
   // Toolbar reader menu (SETTINGS.readerMenuStyle == READER_MENU_TOOLBAR): drawn
   // over the page instead of pushing the full-screen list menu. Select opens the
@@ -209,6 +214,8 @@ class EpubReaderActivity final : public ReaderActivity {
   void loadCachedBookmarks();
   void addBookmark();
   void updateBookmarkFlag();
+  void markBookRead(bool showMessage);
+  void toggleReadStatus();
 
   void navigateToHref(const std::string& href, bool savePosition = false);
   void restoreSavedPosition();
