@@ -22,6 +22,7 @@
 #include "fontIds.h"
 #include "util/BookCacheUtils.h"
 #include "util/BookmarkUtil.h"
+#include "util/ReadStatus.h"
 
 namespace fui = freeink::ui;
 
@@ -158,6 +159,17 @@ void FileBrowserActivity::provideRow(void* ctx, const uint16_t index, fui::ListI
   formatFileExtension(entry, self->rowExtBuf, sizeof(self->rowExtBuf));
   if (self->rowExtBuf[0] != '\0') {
     item.value = self->rowExtBuf;
+  }
+  // Finished books get a second line: "Read in DD/MM/YYYY".
+  if (self->mode == Mode::Books && !entry.empty() && entry.back() != '/' && ReadStatus::supportsBook(entry)) {
+    self->rowPathScratch = self->basepath;
+    if (self->rowPathScratch.back() != '/') self->rowPathScratch += '/';
+    self->rowPathScratch += entry;
+    const ReadStatus::Info status = ReadStatus::load(self->rowPathScratch);
+    if (status.read) {
+      ReadStatus::formatLabel(status, self->rowReadBuf, sizeof(self->rowReadBuf));
+      item.subtitle = self->rowReadBuf;
+    }
   }
   item.icon = listIconFor(UITheme::getFileIcon(entry));
   item.actionValue = static_cast<int16_t>(index);

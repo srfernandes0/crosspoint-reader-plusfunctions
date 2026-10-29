@@ -272,6 +272,7 @@ bool EpubReaderActivity::loadBook() {
   });
 
   epub->setupCacheDir();
+  readStatus = ReadStatus::load(epub->getPath());
 
   HalFile f;
   if (Storage.openFileForRead("ERS", epub->getCachePath() + "/progress.bin", f)) {
@@ -304,6 +305,9 @@ bool EpubReaderActivity::loadBook() {
       LOG_DBG("ERS", "Opened for first time, navigating to text reference at index %d", textSpineIndex);
     }
   }
+
+  // Opening straight onto the End of book screen must not re-stamp a book that is already marked.
+  endOfBookMarked = readStatus.read && currentSpineIndex > 0 && currentSpineIndex >= epub->getSpineItemsCount();
 
   loadLinkStack();
   loadCachedBookmarks();
@@ -351,7 +355,7 @@ void EpubReaderActivity::openReaderMenu() {
   startActivityForResult(std::make_unique<EpubReaderMenuActivity>(
                              renderer, mappedInput, epub->getTitle(), position.displayPage(), position.totalPages,
                              bookProgressPercent, SETTINGS.orientation, !currentPageFootnotes.empty(),
-                             !cachedBookmarks.empty(), CLIPPINGS.hasClippings(), selectedMenuAction),
+                             !cachedBookmarks.empty(), CLIPPINGS.hasClippings(), selectedMenuAction, readStatus.read),
                          [this](const ActivityResult& result) {
                            const auto& menu = std::get<MenuResult>(result.data);
 
@@ -728,6 +732,16 @@ void EpubReaderActivity::loop() {
     pendingReadFolderMove = SETTINGS.moveFinishedToReadFolder && !isInReadFolder(epub->getPath());
   } else {
     pendingReadFolderMove = false;
+  }
+
+  // Turning past the last page marks the book read; finishing it again refreshes the date.
+  if (atEndOfBook) {
+    if (!endOfBookMarked) {
+      endOfBookMarked = true;
+      markBookRead(false);
+    }
+  } else {
+    endOfBookMarked = false;
   }
 
   const auto touch =
@@ -1252,6 +1266,10 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
           section.reset();
           epub->clearCache();
           epub->setupCacheDir();
+          // The cache folder held read.bin; put the marker back.
+          if (readStatus.read && !ReadStatus::restore(epub->getPath(), readStatus)) {
+            LOG_ERR("ERS", "Failed to restore read status after cache clear");
+          }
           if (!saveProgress(backupSpine, backupPage, backupPageCount)) {
             LOG_ERR("ERS", "Failed to save progress before cache clear");
           }
@@ -1288,6 +1306,11 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
     }
     case EpubReaderMenuActivity::MenuAction::TOGGLE_BOOKMARK: {
       addBookmark();
+      break;
+    }
+    case EpubReaderMenuActivity::MenuAction::TOGGLE_READ: {
+      toggleReadStatus();
+      requestUpdate();
       break;
     }
   }
@@ -3082,7 +3105,7 @@ void EpubReaderActivity::applyReaderTextSettings() {
 void EpubReaderActivity::buildMoreActions() {
   using MA = EpubReaderMenuActivity::MenuAction;
   EpubReaderMenuActivity::buildMenuItems(moreItems, !currentPageFootnotes.empty(), !cachedBookmarks.empty(),
-                                         CLIPPINGS.hasClippings());
+                                         CLIPPINGS.hasClippings(), readStatus.read);
   moreItems.erase(std::remove_if(moreItems.begin(), moreItems.end(),
                                  [](const auto& item) {
                                    return item.action == MA::SELECT_CHAPTER || item.action == MA::TEXT_SETTINGS;
@@ -3389,6 +3412,35 @@ void EpubReaderActivity::updateBookmarkFlag() {
   currentPageBookmarked = std::any_of(cachedBookmarks.begin(), cachedBookmarks.end(), [&](const BookmarkEntry& b) {
     return bookmarkMatchesProgress(b, currentSpineIndex, section->currentPage, pageCount, pageRange);
   });
+}
+
+void EpubReaderActivity::markBookRead(const bool showMessage) {
+  if (!epub) return;
+  if (!ReadStatus::markRead(epub->getPath(), readStatus)) {
+    LOG_ERR("ERS", "Failed to save read status");
+    return;
+  }
+  if (showMessage) {
+    clippingMessage = StrId::STR_MARKED_READ;
+    showClippingMessage = true;
+    clippingMessageTime = millis();
+  }
+}
+
+void EpubReaderActivity::toggleReadStatus() {
+  if (!epub) return;
+  if (!readStatus.read) {
+    markBookRead(true);
+    return;
+  }
+  if (!ReadStatus::clear(epub->getPath())) {
+    LOG_ERR("ERS", "Failed to clear read status");
+    return;
+  }
+  readStatus = ReadStatus::Info{};
+  clippingMessage = StrId::STR_MARKED_UNREAD;
+  showClippingMessage = true;
+  clippingMessageTime = millis();
 }
 
 ScreenshotInfo EpubReaderActivity::getScreenshotInfo() const {

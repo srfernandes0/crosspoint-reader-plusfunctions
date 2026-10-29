@@ -123,6 +123,7 @@ The Browse Files screen acts as a file and folder browser. The full path to the 
 * **Open Selection:** Press **Confirm** to open a folder or start reading a selected book. Selecting a `.bmp` file will open the image viewer.
 * **Delete Files or Folders:** Hold and release **Confirm** to delete the selected file or folder. You will be given an option to either confirm or cancel. Multiple files can be selected for deletion in a single operation.
 * **Rename or Move:** Files can be renamed or moved to a different folder from within the browse screen.
+* **Read status:** Books you have finished show a second line, **Read in DD/MM/YYYY** (just **Read** if the clock was not set at that moment). See the **Mark as READ** entry in the **[Reader Menu](#5-reader-menu)**.
 
 ### 3.4 Library Screen
 
@@ -144,6 +145,8 @@ On a button-only device:
 On a touch device, tap tabs, books, and the Search icon directly. Tap an active indexed tab again to reverse its sort direction. Swipe to scroll. Long-press a book in the Recent view to remove it from the list. Long-press a book in a Title or Author view to collapse to the group list, then tap a group to expand it. The **Added** view is not grouped; tapping or long-pressing a book opens it.
 
 The index is created automatically the first time the Library is opened. To pick up later file changes or updated metadata, use **Settings → System → Rebuild library index**. The **Use book metadata** setting controls whether the index reads titles and authors stored inside books.
+
+Books you have finished show **Read in DD/MM/YYYY** at the start of their second line, ahead of the author (see the **Mark as READ** entry in the **[Reader Menu](#5-reader-menu)**).
 
 ### 3.5 File Transfer Screen
 
@@ -711,7 +714,8 @@ Available options include:
 - **Show page as QR** – Display a QR code encoding the current reading position.
 - **Go Home** – Close the book and return to the Home screen.
 - **Sync Progress** – Push or pull reading progress with a KOReader sync server (see [KOReader Sync Quick Setup](#367-koreader-sync-quick-setup)). This entry appears when sync credentials are saved or an enabled plugin subscribes to device events. Without sync credentials, it connects to Wi-Fi to send queued plugin events.
-- **Delete Book Cache** – Clear the cached layout data for the current book, forcing a re-index on next open.
+- **Mark as READ / Mark as UNREAD** – Mark the book as finished, or clear that mark. The book is also marked automatically when you turn past its last page and the **End of book** screen appears; finishing it again updates the date. The date is the local date from the device clock, using the time zone from **Settings → System → Clock** (that menu appears only on devices with a clock chip; elsewhere the time zone defaults to UTC). If the clock was not set, the book is marked **Read** without a date. This works for EPUB, TXT, and MD books. The mark is stored in the book's cache folder, so **Settings → Reader → Clear Reading Cache** removes it, and renaming, moving, or re-uploading the book from the web interface or WebDAV also resets it. Renaming or moving the book on the device keeps it.
+- **Delete Book Cache** – Clear the cached layout data for the current book, forcing a re-index on next open. The Read mark is kept.
 
 Press **Back** at any time to close the menu and return to your current page.
 
